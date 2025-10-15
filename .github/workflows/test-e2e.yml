@@ -1,0 +1,224 @@
+name: 🎭 Tests E2E Playwright - Niveau Einsteinien
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Tests quotidiens à 6h UTC
+    - cron: '0 6 * * *'
+
+jobs:
+  test-e2e:
+    name: Tests End-to-End
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit, mobile-chrome]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: 📦 Install dependencies
+      run: |
+        npm ci
+        cd backend && pip install -r requirements.txt
+    
+    - name: 🎭 Install Playwright
+      run: npx playwright install --with-deps ${{ matrix.browser }}
+    
+    - name: 🗄️ Setup test database
+      run: |
+        cd backend
+        python -c "
+        from database import engine, Base
+        from models import *
+        Base.metadata.create_all(bind=engine)
+        print('✅ Test database created')
+        "
+    
+    - name: 🚀 Start services
+      run: |
+        # Backend
+        cd backend && uvicorn main:app --port 8000 &
+        echo $! > backend.pid
+        
+        # Frontend  
+        npm run build && npm start &
+        echo $! > frontend.pid
+        
+        # Wait for services
+        npx wait-on http://localhost:3000 http://localhost:8000/health
+      timeout-minutes: 5
+    
+    - name: 🧪 Run E2E tests
+      run: npx playwright test --project=${{ matrix.browser }}
+      env:
+        BASE_URL: http://localhost:3000
+        CI: true
+    
+    - name: 📊 Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report-${{ matrix.browser }}
+        path: |
+          playwright-report/
+          test-results/
+        retention-days: 7
+    
+    - name: 🧹 Cleanup
+      if: always()
+      run: |
+        # Kill processes
+        if [ -f backend.pid ]; then kill $(cat backend.pid) || true; fi
+        if [ -f frontend.pid ]; then kill $(cat frontend.pid) || true; fi
+        
+        # Clean test data
+        rm -f backend/test.db
+        rm -f *.pid
+
+  lighthouse-audit:
+    name: 🔍 Audit Lighthouse
+    runs-on: ubuntu-latest
+    needs: test-e2e
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: 📦 Install dependencies
+      run: |
+        npm ci
+        npm install -g lighthouse
+        cd backend && pip install -r requirements.txt
+    
+    - name: 🚀 Start application
+      run: |
+        cd backend && uvicorn main:app --port 8000 &
+        npm run build && npm start &
+        npx wait-on http://localhost:3000
+    
+    - name: 📊 Run Lighthouse audit
+      run: node tests/utils/performance-audit.js
+    
+    - name: 📤 Upload Lighthouse results
+      uses: actions/upload-artifact@v4
+      with:
+        name: lighthouse-report
+        path: lighthouse-report.json
+
+  accessibility-audit:
+    name: ♿ Audit Accessibilité
+    runs-on: ubuntu-latest
+    needs: test-e2e
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: 📦 Install dependencies
+      run: |
+        npm ci
+        npx playwright install chromium
+        cd backend && pip install -r requirements.txt
+    
+    - name: 🚀 Start application
+      run: |
+        cd backend && uvicorn main:app --port 8000 &
+        npm run build && npm start &
+        npx wait-on http://localhost:3000
+    
+    - name: ♿ Run accessibility tests
+      run: npx playwright test --project=accessibility
+    
+    - name: 📤 Upload A11y results
+      uses: actions/upload-artifact@v4
+      with:
+        name: accessibility-report
+        path: test-results/
+
+  security-scan:
+    name: 🔒 Scan de sécurité
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🔧 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: 🔍 NPM Security Audit
+      run: |
+        npm audit --audit-level high
+        cd backend && pip-audit
+    
+    - name: 🛡️ CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        languages: javascript, python
+
+  summary-report:
+    name: 📋 Rapport Final
+    runs-on: ubuntu-latest
+    needs: [test-e2e, lighthouse-audit, accessibility-audit, security-scan]
+    if: always()
+    
+    steps:
+    - name: 📥 Download all artifacts
+      uses: actions/download-artifact@v4
+    
+    - name: 📊 Generate summary report
+      run: |
+        echo "# 🎯 Rapport de Tests Bookinails" >> $GITHUB_STEP_SUMMARY
+        echo "## 🧪 Tests E2E" >> $GITHUB_STEP_SUMMARY
+        
+        # Count test results
+        TOTAL_TESTS=$(find . -name "*.json" -path "*/test-results/*" | xargs cat | jq -r '.stats.total // 0' | awk '{sum += $1} END {print sum}')
+        PASSED_TESTS=$(find . -name "*.json" -path "*/test-results/*" | xargs cat | jq -r '.stats.passed // 0' | awk '{sum += $1} END {print sum}')
+        
+        echo "✅ Tests passés: $PASSED_TESTS/$TOTAL_TESTS" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## 📊 Scores Lighthouse" >> $GITHUB_STEP_SUMMARY
+        if [ -f lighthouse-report/lighthouse-report.json ]; then
+          PERF_SCORE=$(cat lighthouse-report/lighthouse-report.json | jq -r '.summary.avgScores.performance // 0')
+          A11Y_SCORE=$(cat lighthouse-report/lighthouse-report.json | jq -r '.summary.avgScores.accessibility // 0')
+          SEO_SCORE=$(cat lighthouse-report/lighthouse-report.json | jq -r '.summary.avgScores.seo // 0')
+          
+          echo "- 🚀 Performance: $PERF_SCORE/100" >> $GITHUB_STEP_SUMMARY
+          echo "- ♿ Accessibilité: $A11Y_SCORE/100" >> $GITHUB_STEP_SUMMARY  
+          echo "- 🔍 SEO: $SEO_SCORE/100" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "## 🎉 Status Global" >> $GITHUB_STEP_SUMMARY
+        if [ "$PASSED_TESTS" = "$TOTAL_TESTS" ] && [ "$PERF_SCORE" -gt 85 ]; then
+          echo "🚀 **BOOKINAILS READY FOR PRODUCTION!** 🎯" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Optimisations requises avant production" >> $GITHUB_STEP_SUMMARY
+        fi

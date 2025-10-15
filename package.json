@@ -1,0 +1,51 @@
+{
+  "name": "bookinails",
+  "version": "1.0.0",
+  "description": "Plateforme de réservation de prestations d'ongles - comme Booking.com pour la beauté",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "build": "cd frontend && npm run build",
+    "start": "concurrently \"npm run start:frontend\" \"npm run start:backend\"",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && uvicorn main:app --host 0.0.0.0 --port 8000",
+    "stop": "pkill -f \"uvicorn main:app\" && pkill -f \"next\"",
+    "seed": "cd backend && python seed_data.py",
+    "test": "cd backend && pytest",
+    "test:frontend": "cd frontend && npm test",
+    "lint": "cd frontend && npm run lint",
+    "test:e2e": "playwright test tests/e2e",
+    "test:ui": "playwright test tests/components", 
+    "test:perf": "node tests/utils/performance-audit.js",
+    "test:a11y": "playwright test --project=accessibility",
+    "test:all": "npm run test && npm run test:e2e && npm run test:perf",
+    "check:prelaunch": "node scripts/check-prelaunch.js",
+    "audit:lighthouse": "node tests/utils/performance-audit.js",
+    "audit:security": "npm audit && cd backend && pip-audit",
+    "playwright:install": "npx playwright install --with-deps",
+    "playwright:ui": "npx playwright test --ui",
+    "report:generate": "node scripts/generate-report.js",
+    "deploy:check": "npm run check:prelaunch && npm run test:all"
+  },
+  "keywords": [
+    "booking",
+    "nails",
+    "manicure",
+    "beauty",
+    "reservation",
+    "fastapi",
+    "nextjs",
+    "typescript"
+  ],
+  "author": "Bookinails Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/votre-username/bookinails.git"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.11.0"
+  }
+}

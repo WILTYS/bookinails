@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://bookinails.fr/sitemap.xml
+
+# Disallow private areas
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+
+# Allow important pages
+Allow: /
+Allow: /salon/
+Allow: /login
+Allow: /register
+Allow: /comment-ca-marche
+Allow: /support
+Allow: /conditions
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
