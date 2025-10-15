@@ -191,6 +191,10 @@ export default function Chat({
               
               {!isOwn && (
                 <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center ml-2 mt-auto order-2">
+                  <img 
+                    src="/avatar-placeholder.png" 
+                    alt="Avatar utilisateur"
+                    className="w-8 h-8 rounded-full" />
                   {recipientAvatar ? (
                     <img src={recipientAvatar} alt={recipientName} className="w-8 h-8 rounded-full object-cover" />
                   ) : (
