@@ -16,7 +16,7 @@
     "test:frontend": "cd frontend && npm test",
     "lint": "cd frontend && npm run lint",
     "test:e2e": "playwright test tests/e2e",
-    "test:ui": "playwright test tests/components", 
+    "test:ui": "playwright test tests/components",
     "test:perf": "node tests/utils/performance-audit.js",
     "test:a11y": "playwright test --project=accessibility",
     "test:all": "npm run test && npm run test:e2e && npm run test:perf",
@@ -47,5 +47,8 @@
   "engines": {
     "node": ">=18.0.0",
     "python": ">=3.11.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0"
   }
 }
