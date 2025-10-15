@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import Head from 'next/head'
-import Link from 'next/link'
-import { MapPin, Search, Star, Clock, Euro } from 'lucide-react'
-import SearchBar from '@/components/SearchBar'
-import SalonCard from '@/components/SalonCard'
-import { Salon } from '@/types'
+import Header from '../components/Header'
+import HeroSection from '../components/HeroSection'
+import HowItWorks from '../components/HowItWorks'
+import SocialProof from '../components/SocialProof'
+import SalonCard from '../components/SalonCard'
+import SEO from '../components/SEO'
 
 const MOCK_SALONS: Salon[] = [
   {
